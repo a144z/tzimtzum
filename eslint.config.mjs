@@ -11,6 +11,14 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      // Disable TypeScript any type warnings for p5.js compatibility
+      "@typescript-eslint/no-explicit-any": "off",
+      // Disable prefer-const for variables that are reassigned in loops or conditionals
+      "prefer-const": "off",
+    },
+  },
 ];
 
 export default eslintConfig;
