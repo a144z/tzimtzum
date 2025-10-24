@@ -25,42 +25,35 @@ const P5Sketch = () => {
         let gapSize: number; // Will be calculated
         let baseRadii: number[]; // Array of base radii for each layer
         let labels: any[]; // Array of labels for dot and layers
-        let scaleFactor: number; // Responsive scaling factor
+        let responsiveScale: number; // Global scale factor for all elements
 
-        p.setup = () => {
-          // Get responsive dimensions
-          const containerWidth = canvasRef.current?.clientWidth || window.innerWidth;
-          const containerHeight = canvasRef.current?.clientHeight || window.innerHeight;
+        const calculateDimensions = () => {
+          // Get viewport dimensions
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
           
-          // Set canvas size with some padding
-          const canvasWidth = Math.min(containerWidth - 40, 1200);
-          const canvasHeight = Math.min(containerHeight - 40, 900);
+          // Calculate canvas size with padding
+          const padding = vw < 768 ? 20 : 40; // Less padding on mobile
+          const maxWidth = Math.min(vw - padding, 1200);
+          const maxHeight = Math.min(vh - padding, 900);
           
-          p.createCanvas(canvasWidth, canvasHeight);
-          centerX = p.width / 2;
-          centerY = p.height / 2;
-          p.frameRate(30);
+          // Use the smaller dimension to ensure circle fits
+          const canvasSize = Math.min(maxWidth, maxHeight);
           
-          // Calculate responsive scaling factor
-          const baseSize = 600; // Base canvas size for scaling
-          scaleFactor = Math.min(canvasWidth, canvasHeight) / baseSize;
-          scaleFactor = Math.max(0.5, Math.min(2.0, scaleFactor)); // Clamp between 0.5x and 2x
+          // Calculate responsive scale factor
+          const baseSize = 800; // Base size for scaling
+          responsiveScale = canvasSize / baseSize;
+          responsiveScale = Math.max(0.4, Math.min(1.5, responsiveScale)); // Clamp between 0.4x and 1.5x
           
-          // Scale dimensions based on screen size
-          maxRadius = 300 * scaleFactor;
-          dotRadius = 4 * scaleFactor;
-          layerThickness = 8 * scaleFactor;
+          // Scale all base measurements
+          maxRadius = 300 * responsiveScale;
+          dotRadius = 4 * responsiveScale;
+          layerThickness = 8 * responsiveScale;
           
-          // Labels: Hebrew with [English] translation
-          labels = [
-            {hebrew: 'אין סוף', english: 'Ein Sof'}, // 0: Central dot
-            {hebrew: 'אצילות', english: 'Atzilut'},   // 1: Layer 0 (innermost)
-            {hebrew: 'בריאה', english: 'Beriah'},    // 2: Layer 1
-            {hebrew: 'יצירה', english: 'Yetzirah'},  // 3: Layer 2
-            {hebrew: 'עשיה', english: 'Asiyah'},     // 4: Layer 3
-            {hebrew: 'גבול', english: 'Boundary'}     // 5: Layer 4 (outermost)
-          ];
-          
+          return { width: canvasSize, height: canvasSize };
+        };
+
+        const initializeRadii = () => {
           // Calculate static base radii for equal gaps
           totalThickness = numInnerLayers * layerThickness;
           let totalGapSpace = maxRadius - dotRadius - totalThickness;
@@ -76,42 +69,32 @@ const P5Sketch = () => {
           }
         };
 
-        p.windowResized = () => {
-          // Get responsive dimensions
-          const containerWidth = canvasRef.current?.clientWidth || window.innerWidth;
-          const containerHeight = canvasRef.current?.clientHeight || window.innerHeight;
-          
-          // Set canvas size with some padding
-          const canvasWidth = Math.min(containerWidth - 40, 1200);
-          const canvasHeight = Math.min(containerHeight - 40, 900);
-          
-          p.resizeCanvas(canvasWidth, canvasHeight);
+        p.setup = () => {
+          const dimensions = calculateDimensions();
+          p.createCanvas(dimensions.width, dimensions.height);
           centerX = p.width / 2;
           centerY = p.height / 2;
+          p.frameRate(30);
           
-          // Recalculate responsive scaling factor
-          const baseSize = 600;
-          scaleFactor = Math.min(canvasWidth, canvasHeight) / baseSize;
-          scaleFactor = Math.max(0.5, Math.min(2.0, scaleFactor));
+          // Labels: Hebrew with [English] translation
+          labels = [
+            {hebrew: 'אין סוף', english: 'Ein Sof'}, // 0: Central dot
+            {hebrew: 'אצילות', english: 'Atzilut'},   // 1: Layer 0 (innermost)
+            {hebrew: 'בריאה', english: 'Beriah'},    // 2: Layer 1
+            {hebrew: 'יצירה', english: 'Yetzirah'},  // 3: Layer 2
+            {hebrew: 'עשיה', english: 'Asiyah'},     // 4: Layer 3
+            {hebrew: 'גבול', english: 'Boundary'}     // 5: Layer 4 (outermost)
+          ];
           
-          // Rescale dimensions
-          maxRadius = 300 * scaleFactor;
-          dotRadius = 4 * scaleFactor;
-          layerThickness = 8 * scaleFactor;
-          
-          // Recalculate base radii
-          totalThickness = numInnerLayers * layerThickness;
-          let totalGapSpace = maxRadius - dotRadius - totalThickness;
-          gapSize = totalGapSpace / numGaps;
-          baseRadii = [];
-          let currentR = dotRadius;
-          for (let i = 0; i < numCircles; i++) {
-            currentR += gapSize;
-            baseRadii[i] = currentR;
-            if (i < numInnerLayers) {
-              currentR += layerThickness;
-            }
-          }
+          initializeRadii();
+        };
+
+        p.windowResized = () => {
+          const dimensions = calculateDimensions();
+          p.resizeCanvas(dimensions.width, dimensions.height);
+          centerX = p.width / 2;
+          centerY = p.height / 2;
+          initializeRadii();
         };
 
         p.draw = () => {
@@ -139,19 +122,19 @@ const P5Sketch = () => {
             }
           }
           
-          let weight = 4 * scaleFactor; // Responsive thickness for all main circles
+          let weight = 4 * responsiveScale; // Responsive thickness for all main circles
           let numThins = 10;
-          let endGap = 10 * scaleFactor; // Responsive pixel gap at both ends for thinner circles
+          let endGap = 10 * responsiveScale; // Responsive pixel gap at both ends for thinner circles
           
           // Set responsive text style for labels
-          p.textSize(12 * scaleFactor);
+          p.textSize(12 * responsiveScale);
           p.textAlign(p.LEFT, p.CENTER);
           p.textStyle(p.NORMAL);
           
           // Draw label for central dot (always visible)
           let dotAlpha = 255;
           p.fill(0, 0, 0, dotAlpha);
-          p.text(labels[0].hebrew + ' [' + labels[0].english + ']', centerX + 10 * scaleFactor, centerY - 20 * scaleFactor); // Responsive offset
+          p.text(labels[0].hebrew + ' [' + labels[0].english + ']', centerX + 10 * responsiveScale, centerY - 20 * responsiveScale); // Responsive offset
           p.noFill();
           
           // Draw thinner circles in each gap, appearing progressively from inner to outer during contraction
@@ -234,8 +217,8 @@ const P5Sketch = () => {
             let labelAlpha = alpha;
             p.fill(0, 0, 0, labelAlpha);
             p.noStroke();
-            let labelY = centerY + (i * 15 * scaleFactor - 30 * scaleFactor); // Responsive vertical offset per layer
-            p.text(labels[i + 1].hebrew + ' [' + labels[i + 1].english + ']', centerX + midR + 5 * scaleFactor, labelY);
+            let labelY = centerY + (i * 15 * responsiveScale - 30 * responsiveScale); // Responsive vertical offset per layer
+            p.text(labels[i + 1].hebrew + ' [' + labels[i + 1].english + ']', centerX + midR + 5 * responsiveScale, labelY);
             p.noFill();
           }
           
