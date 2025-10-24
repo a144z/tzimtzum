@@ -190,9 +190,15 @@ const P5Sketch = () => {
           // Draw main circles for each layer with progressive visibility and subtle pulsing
           p.noFill();
           for (let i = 0; i < numCircles; i++) {
-            // Progressive visibility: outer always visible, inner appear progressively
-            let progressThreshold = (i === numCircles - 1) ? -1 : (i / (numCircles - 1)) * 0.8;
-            let vis = p.max(0, p.min(1, (contractProgress - progressThreshold) / 0.2));
+            // Progressive visibility: layers appear early and stay visible longer
+            // Outer layer (i=4) always visible, inner layers appear progressively but stay longer
+            let progressThreshold = (i === numCircles - 1) ? -1 : (i / (numCircles - 1)) * 0.3;
+            let fadeOutThreshold = (i === numCircles - 1) ? 1.2 : 0.7 + (i / (numCircles - 1)) * 0.3;
+            
+            // Calculate visibility: appear early, stay visible, then fade out
+            let appearProgress = p.max(0, p.min(1, (contractProgress - progressThreshold) / 0.15));
+            let fadeOutProgress = p.max(0, p.min(1, (contractProgress - fadeOutThreshold) / 0.2));
+            let vis = appearProgress * (1 - fadeOutProgress);
             let alpha = vis * 255;
             
             let baseRadius1 = scaledBase[i];
@@ -212,9 +218,9 @@ const P5Sketch = () => {
               p.arc(centerX, centerY, radius2 * 2, radius2 * 2, arcStart, arcEnd);
             }
             
-            // Draw label for this layer
+            // Draw label for this layer (same visibility as the layer)
             let midR = baseRadius1 + (i < numInnerLayers ? layerThickness * scaleFactor / 2 : 0);
-            let labelAlpha = alpha;
+            let labelAlpha = alpha; // Use same alpha as the layer
             p.fill(0, 0, 0, labelAlpha);
             p.noStroke();
             let labelY = centerY + (i * 15 * responsiveScale - 30 * responsiveScale); // Responsive vertical offset per layer
