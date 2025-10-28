@@ -39,7 +39,9 @@ const P5Sketch = () => {
           const baseHeight = 600;
           
           // Scale canvas proportionally but ensure it fits
-          const scale = Math.min((vw - 40) / baseWidth, (vh - 40) / baseHeight, 1.0);
+          // Add more padding to ensure full circle visibility (including pulse effects + labels)
+          const padding = 60;
+          const scale = Math.min((vw - padding) / baseWidth, (vh - padding) / baseHeight, 1.2);
           const canvasWidth = baseWidth * scale;
           const canvasHeight = baseHeight * scale;
           
@@ -47,7 +49,12 @@ const P5Sketch = () => {
           responsiveScale = scale;
           responsiveScale = Math.max(0.4, Math.min(1.5, responsiveScale)); // Clamp between 0.4x and 1.5x
           
-          // Scale all base measurements
+          // Scale all base measurements - ensure they fit within available space
+          // Account for pulse effects (max ~3px), so use 95% of available radius
+          const availableRadius = Math.min(canvasWidth, canvasHeight) / 2 * 0.95;
+          const baseMaxRadius = 300; // Base max radius from original design
+          responsiveScale = Math.min(responsiveScale, availableRadius / baseMaxRadius);
+          
           maxRadius = 300 * responsiveScale;
           dotRadius = 4 * responsiveScale;
           layerThickness = 8 * responsiveScale;
@@ -80,14 +87,14 @@ const P5Sketch = () => {
           
           dotColor = p.color(0); // Black for dot
           
-          // Labels: Hebrew with [English translation including element]
+          // Labels: Hebrew with (English translation including element)
           labels = [
-            {hebrew: 'אין סוף', english: 'Ein Sof [Infinite]'}, // 0: Central dot
-            {hebrew: 'אצילות', english: 'Atzilut [Emanation - Fire]'},   // 1: Layer 0 (innermost)
-            {hebrew: 'בריאה', english: 'Beriah [Creation - Water]'},    // 2: Layer 1
-            {hebrew: 'יצירה', english: 'Yetzirah [Formation - Air]'},  // 3: Layer 2
-            {hebrew: 'עשיה', english: 'Asiyah [Action - Earth]'},     // 4: Layer 3
-            {hebrew: 'גבול', english: 'Boundary [Cosmic Limit]'}     // 5: Layer 4 (outermost)
+            {hebrew: 'אין סוף', english: 'Ein Sof\n(Infinite)'}, // 0: Central dot
+            {hebrew: 'אצילות', english: 'Atzilut\n(Emanation - Fire)'},   // 1: Layer 0 (innermost)
+            {hebrew: 'בריאה', english: 'Beriah\n(Creation - Water)'},    // 2: Layer 1
+            {hebrew: 'יצירה', english: 'Yetzirah\n(Formation - Air)'},  // 3: Layer 2
+            {hebrew: 'עשיה', english: 'Asiyah\n(Action - Earth)'},     // 4: Layer 3
+            {hebrew: 'גבול', english: 'Boundary\n(Cosmic Limit)'}     // 5: Layer 4 (outermost)
           ];
           
           // Base colors for layers (Fire: red, Water: blue, Air: cyan, Earth: green, Boundary: purple)
@@ -147,7 +154,7 @@ const P5Sketch = () => {
           // Draw label for central dot (always visible)
           let dotAlpha = 255;
           p.fill(0, 0, 0, dotAlpha);
-          p.text(labels[0].hebrew + ' [' + labels[0].english + ']', centerX + 10 * responsiveScale, centerY - 20 * responsiveScale); // Responsive offset
+          p.text(labels[0].hebrew + '\n' + labels[0].english, centerX + 10 * responsiveScale, centerY - 20 * responsiveScale); // Responsive offset
           p.noFill();
           
           // Draw thinner circles in each gap, appearing progressively from inner to outer during contraction
@@ -181,32 +188,48 @@ const P5Sketch = () => {
                 let numMiddleGaps = numThins - 1;
                 let thinGap = middleSpace / numMiddleGaps;
                 for (let j = 0; j < numThins; j++) {
-                  let frac = j / (numThins - 1);
-                  let thinColor = p.lerpColor(innerThinColor, outerThinColor, frac);
-                  let fadedThinColor = p.lerpColor(thinColor, p.color(255), contractProgress * 0.5); // Gradient fade to white during contraction
-                  let baseThinRadius = innerR + endGap + j * thinGap;
-                  let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2; // Subtle pulse
-                  let thinRadius = baseThinRadius + pulse;
-                  let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
-                  p.stroke(levels[0], levels[1], levels[2], alpha);
-                  p.strokeWeight(weight / 5); // Thinner stroke
-                  p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
+                  // Sequential appearance: inner circles (low j) appear first, visible for longer duration
+                  let thinAppearTime = j / numThins * 0.9; // Start appearing earlier for more visible effect
+                  let thinFadeTime = 0.12; // Fade over 12% of the cycle
+                  let thinVis = p.max(0, p.min(1, (contractProgress - thinAppearTime) / thinFadeTime));
+                  let thinAlpha = thinVis * alpha; // Combine with gap visibility
+                  
+                  if (thinAlpha > 1) { // Only draw if visible
+                    let frac = j / (numThins - 1);
+                    let thinColor = p.lerpColor(innerThinColor, outerThinColor, frac);
+                    let fadedThinColor = p.lerpColor(thinColor, p.color(255), contractProgress * 0.5); // Gradient fade to white during contraction
+                    let baseThinRadius = innerR + endGap + j * thinGap;
+                    let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2; // Subtle pulse
+                    let thinRadius = baseThinRadius + pulse;
+                    let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
+                    p.stroke(levels[0], levels[1], levels[2], thinAlpha);
+                    p.strokeWeight(weight / 5); // Thinner stroke
+                    p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
+                  }
                 }
               } else {
                 // Fallback if space is too small: space evenly
                 let numGapsThin = numThins + 1;
                 let gapSizeThin = totalGapDist / numGapsThin;
                 for (let j = 0; j < numThins; j++) {
-                  let frac = j / (numThins - 1);
-                  let thinColor = p.lerpColor(innerThinColor, outerThinColor, frac);
-                  let fadedThinColor = p.lerpColor(thinColor, p.color(255), contractProgress * 0.5);
-                  let baseThinRadius = innerR + (j + 1) * gapSizeThin;
-                  let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2;
-                  let thinRadius = baseThinRadius + pulse;
-                  let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
-                  p.stroke(levels[0], levels[1], levels[2], alpha);
-                  p.strokeWeight(weight / 5); // Thinner stroke
-                  p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
+                  // Sequential appearance for fallback case too
+                  let thinAppearTime = j / numThins * 0.9; // Start appearing earlier for more visible effect
+                  let thinFadeTime = 0.12; // Fade over 12% of the cycle
+                  let thinVis = p.max(0, p.min(1, (contractProgress - thinAppearTime) / thinFadeTime));
+                  let thinAlpha = thinVis * alpha; // Combine with gap visibility
+                  
+                  if (thinAlpha > 1) { // Only draw if visible
+                    let frac = j / (numThins - 1);
+                    let thinColor = p.lerpColor(innerThinColor, outerThinColor, frac);
+                    let fadedThinColor = p.lerpColor(thinColor, p.color(255), contractProgress * 0.5);
+                    let baseThinRadius = innerR + (j + 1) * gapSizeThin;
+                    let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2;
+                    let thinRadius = baseThinRadius + pulse;
+                    let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
+                    p.stroke(levels[0], levels[1], levels[2], thinAlpha);
+                    p.strokeWeight(weight / 5); // Thinner stroke
+                    p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
+                  }
                 }
               }
             }
@@ -227,17 +250,27 @@ const P5Sketch = () => {
             let alpha = vis * 255;
             
             let c = layerColors[i]; // Base color for this layer
+            let useColor = (i < numInnerLayers); // Only inner 4 layers use colors, boundary stays black
             
             // First circle with element-based color and pulsing brightness
             let phaseSin1 = p.sin(time + i * 0.1);
             let pulse1 = phaseSin1 * 3; // Subtle pulse for radius
             let bright1 = 0.8 + phaseSin1 * 0.2; // Synced brightness pulse (0.6 to 1.0)
-            let cLevels = c.levels || [p.red(c), p.green(c), p.blue(c)];
-            let pulsedC1 = p.color(cLevels[0] * bright1, cLevels[1] * bright1, cLevels[2] * bright1);
-            let fadedC1 = p.lerpColor(pulsedC1, p.color(255), contractProgress); // Gradient fade to white during contraction
+            
+            let strokeColor;
+            if (useColor) {
+              let cLevels = c.levels || [p.red(c), p.green(c), p.blue(c)];
+              let pulsedC1 = p.color(cLevels[0] * bright1, cLevels[1] * bright1, cLevels[2] * bright1);
+              let fadedC1 = p.lerpColor(pulsedC1, p.color(255), contractProgress); // Gradient fade to white during contraction
+              let fadedLevels1 = fadedC1.levels || [p.red(fadedC1), p.green(fadedC1), p.blue(fadedC1)];
+              strokeColor = { r: fadedLevels1[0], g: fadedLevels1[1], b: fadedLevels1[2] };
+            } else {
+              // Outer boundary stays pure black
+              strokeColor = { r: 0, g: 0, b: 0 };
+            }
+            
             let radius1 = scaledBase[i] + pulse1;
-            let fadedLevels1 = fadedC1.levels || [p.red(fadedC1), p.green(fadedC1), p.blue(fadedC1)];
-            p.stroke(fadedLevels1[0], fadedLevels1[1], fadedLevels1[2], alpha);
+            p.stroke(strokeColor.r, strokeColor.g, strokeColor.b, alpha);
             p.strokeWeight(weight); // Uniform thickness
             p.arc(centerX, centerY, radius1 * 2, radius1 * 2, arcStart, arcEnd);
             
@@ -246,12 +279,21 @@ const P5Sketch = () => {
               let phaseSin2 = p.sin(time + i * 0.1 + p.PI); // Opposite phase
               let pulse2 = phaseSin2 * 3; // Subtle pulse for radius
               let bright2 = 0.8 + phaseSin2 * 0.2; // Synced brightness pulse
-              let pulsedC2 = p.color(cLevels[0] * bright2, cLevels[1] * bright2, cLevels[2] * bright2);
-              let fadedC2 = p.lerpColor(pulsedC2, p.color(255), contractProgress); // Same fade
+              
+              let strokeColor2;
+              if (useColor) {
+                let cLevels = c.levels || [p.red(c), p.green(c), p.blue(c)];
+                let pulsedC2 = p.color(cLevels[0] * bright2, cLevels[1] * bright2, cLevels[2] * bright2);
+                let fadedC2 = p.lerpColor(pulsedC2, p.color(255), contractProgress); // Same fade
+                let fadedLevels2 = fadedC2.levels || [p.red(fadedC2), p.green(fadedC2), p.blue(fadedC2)];
+                strokeColor2 = { r: fadedLevels2[0], g: fadedLevels2[1], b: fadedLevels2[2] };
+              } else {
+                strokeColor2 = { r: 0, g: 0, b: 0 };
+              }
+              
               let baseRadius2 = scaledBase[i] + layerThickness * scaleFactor;
               let radius2 = baseRadius2 + pulse2;
-              let fadedLevels2 = fadedC2.levels || [p.red(fadedC2), p.green(fadedC2), p.blue(fadedC2)];
-              p.stroke(fadedLevels2[0], fadedLevels2[1], fadedLevels2[2], alpha);
+              p.stroke(strokeColor2.r, strokeColor2.g, strokeColor2.b, alpha);
               p.strokeWeight(weight); // Same thickness
               p.arc(centerX, centerY, radius2 * 2, radius2 * 2, arcStart, arcEnd);
             }
@@ -262,7 +304,7 @@ const P5Sketch = () => {
             p.fill(0, 0, 0, labelAlpha);
             p.noStroke();
             let labelY = centerY + (i * 15 * responsiveScale - 30 * responsiveScale); // Responsive vertical offset per layer
-            p.text(labels[i + 1].hebrew + ' [' + labels[i + 1].english + ']', centerX + midR + 5 * responsiveScale, labelY);
+            p.text(labels[i + 1].hebrew + '\n' + labels[i + 1].english, centerX + midR + 5 * responsiveScale, labelY);
             p.noFill();
           }
           
