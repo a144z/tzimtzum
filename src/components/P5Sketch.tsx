@@ -34,17 +34,17 @@ const P5Sketch = () => {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           
-          // Calculate canvas size with padding
-          const padding = vw < 768 ? 20 : 40; // Less padding on mobile
-          const maxWidth = Math.min(vw - padding, 1200);
-          const maxHeight = Math.min(vh - padding, 900);
+          // Fixed base canvas size
+          const baseWidth = 800;
+          const baseHeight = 600;
           
-          // Use the smaller dimension to ensure circle fits
-          const canvasSize = Math.min(maxWidth, maxHeight);
+          // Scale canvas proportionally but ensure it fits
+          const scale = Math.min((vw - 40) / baseWidth, (vh - 40) / baseHeight, 1.0);
+          const canvasWidth = baseWidth * scale;
+          const canvasHeight = baseHeight * scale;
           
-          // Calculate responsive scale factor
-          const baseSize = 800; // Base size for scaling
-          responsiveScale = canvasSize / baseSize;
+          // Calculate responsive scale factor for content
+          responsiveScale = scale;
           responsiveScale = Math.max(0.4, Math.min(1.5, responsiveScale)); // Clamp between 0.4x and 1.5x
           
           // Scale all base measurements
@@ -52,7 +52,7 @@ const P5Sketch = () => {
           dotRadius = 4 * responsiveScale;
           layerThickness = 8 * responsiveScale;
           
-          return { width: canvasSize, height: canvasSize };
+          return { width: canvasWidth, height: canvasHeight };
         };
 
         const initializeRadii = () => {
@@ -187,7 +187,8 @@ const P5Sketch = () => {
                   let baseThinRadius = innerR + endGap + j * thinGap;
                   let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2; // Subtle pulse
                   let thinRadius = baseThinRadius + pulse;
-                  p.stroke(fadedThinColor.levels[0], fadedThinColor.levels[1], fadedThinColor.levels[2], alpha);
+                  let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
+                  p.stroke(levels[0], levels[1], levels[2], alpha);
                   p.strokeWeight(weight / 5); // Thinner stroke
                   p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
                 }
@@ -202,7 +203,8 @@ const P5Sketch = () => {
                   let baseThinRadius = innerR + (j + 1) * gapSizeThin;
                   let pulse = p.sin(time + gap * 0.1 + j * 0.05) * 2;
                   let thinRadius = baseThinRadius + pulse;
-                  p.stroke(fadedThinColor.levels[0], fadedThinColor.levels[1], fadedThinColor.levels[2], alpha);
+                  let levels = fadedThinColor.levels || [p.red(fadedThinColor), p.green(fadedThinColor), p.blue(fadedThinColor)];
+                  p.stroke(levels[0], levels[1], levels[2], alpha);
                   p.strokeWeight(weight / 5); // Thinner stroke
                   p.arc(centerX, centerY, thinRadius * 2, thinRadius * 2, arcStart, arcEnd);
                 }
@@ -230,10 +232,12 @@ const P5Sketch = () => {
             let phaseSin1 = p.sin(time + i * 0.1);
             let pulse1 = phaseSin1 * 3; // Subtle pulse for radius
             let bright1 = 0.8 + phaseSin1 * 0.2; // Synced brightness pulse (0.6 to 1.0)
-            let pulsedC1 = p.color(c.levels[0] * bright1, c.levels[1] * bright1, c.levels[2] * bright1);
+            let cLevels = c.levels || [p.red(c), p.green(c), p.blue(c)];
+            let pulsedC1 = p.color(cLevels[0] * bright1, cLevels[1] * bright1, cLevels[2] * bright1);
             let fadedC1 = p.lerpColor(pulsedC1, p.color(255), contractProgress); // Gradient fade to white during contraction
             let radius1 = scaledBase[i] + pulse1;
-            p.stroke(fadedC1.levels[0], fadedC1.levels[1], fadedC1.levels[2], alpha);
+            let fadedLevels1 = fadedC1.levels || [p.red(fadedC1), p.green(fadedC1), p.blue(fadedC1)];
+            p.stroke(fadedLevels1[0], fadedLevels1[1], fadedLevels1[2], alpha);
             p.strokeWeight(weight); // Uniform thickness
             p.arc(centerX, centerY, radius1 * 2, radius1 * 2, arcStart, arcEnd);
             
@@ -242,11 +246,12 @@ const P5Sketch = () => {
               let phaseSin2 = p.sin(time + i * 0.1 + p.PI); // Opposite phase
               let pulse2 = phaseSin2 * 3; // Subtle pulse for radius
               let bright2 = 0.8 + phaseSin2 * 0.2; // Synced brightness pulse
-              let pulsedC2 = p.color(c.levels[0] * bright2, c.levels[1] * bright2, c.levels[2] * bright2);
+              let pulsedC2 = p.color(cLevels[0] * bright2, cLevels[1] * bright2, cLevels[2] * bright2);
               let fadedC2 = p.lerpColor(pulsedC2, p.color(255), contractProgress); // Same fade
               let baseRadius2 = scaledBase[i] + layerThickness * scaleFactor;
               let radius2 = baseRadius2 + pulse2;
-              p.stroke(fadedC2.levels[0], fadedC2.levels[1], fadedC2.levels[2], alpha);
+              let fadedLevels2 = fadedC2.levels || [p.red(fadedC2), p.green(fadedC2), p.blue(fadedC2)];
+              p.stroke(fadedLevels2[0], fadedLevels2[1], fadedLevels2[2], alpha);
               p.strokeWeight(weight); // Same thickness
               p.arc(centerX, centerY, radius2 * 2, radius2 * 2, arcStart, arcEnd);
             }
@@ -266,7 +271,8 @@ const P5Sketch = () => {
           let dotPulse = p.sin(time) * 1;
           let scaledDotRadius = baseDotRadius + dotPulse;
           let fadedDot = p.lerpColor(dotColor, p.color(255), contractProgress * 0.5); // Mild fade
-          p.fill(fadedDot.levels[0], fadedDot.levels[1], fadedDot.levels[2]); // Apply fade
+          let fadedDotLevels = fadedDot.levels || [p.red(fadedDot), p.green(fadedDot), p.blue(fadedDot)];
+          p.fill(fadedDotLevels[0], fadedDotLevels[1], fadedDotLevels[2]); // Apply fade
           p.noStroke();
           p.arc(centerX, centerY, scaledDotRadius * 2, scaledDotRadius * 2, arcStart, arcEnd, p.PIE);
         };
